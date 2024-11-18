@@ -1,0 +1,34 @@
+name: blue_bulletin
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  font_awesome_flutter: ^10.8.0
+  google_sign_in: ^6.2.2
+  package_info_plus: ^8.1.1
+  supabase_flutter: ^2.8.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  change_app_package_name: ^1.4.0
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family:  Standup
+      fonts:
+        - asset: assets/fonts/Standup W01 Caps Regular.ttf
+
+  assets:
+    - assets/
+    - assets/images/
+    - assets/icons/
+    - assets/fonts/
