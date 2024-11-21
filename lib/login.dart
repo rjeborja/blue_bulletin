@@ -1,11 +1,11 @@
-import 'package:blue_bulletin/navbar.dart';
-import 'package:blue_bulletin/profile.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'main.dart';
-import 'profile.dart';
+import 'package:blue_bulletin/main.dart';
+import 'package:blue_bulletin/profile.dart';
+import 'package:blue_bulletin/login.dart';
+import 'package:blue_bulletin/navbar.dart';
 
 class LogInPage extends StatefulWidget {
   const LogInPage({super.key});
@@ -23,10 +23,8 @@ class _LogInPageState extends State<LogInPage> {
   void _setupAuthListener() {
     final session = supabase.auth.currentSession;
 
-    // Check if there is a session already (user is logged in)
     if (session != null) {
-      // User is already logged in, navigate to the authenticated page
-      WidgetsBinding.instance!.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) => const Navbar(),
@@ -35,7 +33,6 @@ class _LogInPageState extends State<LogInPage> {
       });
     }
 
-    // Listen to auth state changes for further sign-ins or sign-outs
     supabase.auth.onAuthStateChange.listen((data) {
       final event = data.event;
       if (event == AuthChangeEvent.signedIn) {
@@ -76,6 +73,15 @@ class _LogInPageState extends State<LogInPage> {
       idToken: idToken,
       accessToken: accessToken,
     );
+  }
+
+  Future<void> guestLogin() async {
+    try {
+      final response = await supabase.auth.signInAnonymously();
+      if (response.user != null) {}
+    } catch (error) {
+      print('Guest login failed: $error');
+    }
   }
 
   @override
@@ -154,7 +160,7 @@ class _LogInPageState extends State<LogInPage> {
                 SizedBox(
                   width: 200.0,
                   child: ElevatedButton(
-                    onPressed: _googleSignIn,
+                    onPressed: guestLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       shape: RoundedRectangleBorder(

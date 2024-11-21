@@ -11,6 +11,7 @@ class Navbar extends StatefulWidget {
 
 class _NavbarState extends State<Navbar> {
   int _selectedIndex = 0;
+  final PageController _pageController = PageController();
 
   static final List<Widget> _widgetOptions = <Widget>[
     HomePage(),
@@ -19,16 +20,40 @@ class _NavbarState extends State<Navbar> {
   ];
 
   void _onItemTapped(int index) {
+    if (_selectedIndex != index) {
+      setState(() {
+        _selectedIndex = index;
+      });
+      if (_pageController.hasClients) {
+        _pageController.animateToPage(
+          index,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    }
+  }
+
+  void _onPageChanged(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
   @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: _widgetOptions.elementAt(_selectedIndex),
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: _onPageChanged,
+        physics: const BouncingScrollPhysics(),
+        children: _widgetOptions,
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
@@ -46,7 +71,7 @@ class _NavbarState extends State<Navbar> {
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: const Color(0x992E3192),
+        selectedItemColor: const Color(0xFF2e3192),
         onTap: _onItemTapped,
       ),
     );
