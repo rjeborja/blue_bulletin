@@ -17,12 +17,6 @@ The Blue Bulletin mobile app enables users to:
 - **Event Details**: Access comprehensive details about each event, including the date, time, location, and descriptions.
 - **Inquiries via Chat**: Communicate with event organizers directly through the integrated chat feature, making it easy to get additional information or ask questions.
 
-## 🚀 Technology Stack
-
-The Blue Bulletin mobile app is developed using:
-
-- **Flutter**: A powerful open-source framework by Google for building natively compiled applications for mobile (iOS & Android) from a single codebase.
-
 ## 📸 Screenshots
 
 ![image](https://github.com/user-attachments/assets/89351942-2b80-405c-91c4-4736b4c375bc)
