@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase/supabase.dart'; // Make sure you add this to your pubspec.yaml
+import 'package:supabase/supabase.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'main.dart';
 
