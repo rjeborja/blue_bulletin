@@ -16,6 +16,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _fetchAnnouncements();
   }
 
   // Fetch announcements from Supabase
@@ -247,7 +248,7 @@ class _HomePageState extends State<HomePage> {
         ),
         title: Text(
           truncateWithEllipsis(title, 10),
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 14,
           ), // Ensure it adds an ellipsis if needed
         ),
