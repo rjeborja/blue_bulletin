@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'profile.dart';
-import 'homepage.dart';
+import 'package:blue_bulletin/profile.dart';
+import 'package:blue_bulletin/homepage.dart';
+import 'package:blue_bulletin/chat.dart';
 
 class Navbar extends StatefulWidget {
   const Navbar({super.key});
@@ -15,7 +16,7 @@ class _NavbarState extends State<Navbar> {
 
   static final List<Widget> _widgetOptions = <Widget>[
     HomePage(),
-    const Text('Chat Page'),
+    ChatPage(),
     const ProfileScreen(),
   ];
 
@@ -71,7 +72,7 @@ class _NavbarState extends State<Navbar> {
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: const Color(0xFF2e3192),
+        selectedItemColor: const Color(0xFF2E3192),
         onTap: _onItemTapped,
       ),
     );

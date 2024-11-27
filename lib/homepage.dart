@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:blue_bulletin/main.dart';
 import 'package:blue_bulletin/item.dart';
+import 'package:flutter/rendering.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -12,11 +14,28 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> announcements = [];
+  List<Map<String, dynamic>> filteredAnnouncements = [];
+  TextEditingController searchController = TextEditingController();
+  final FocusNode searchFocusNode = FocusNode();
+  final LayerLink layerLink = LayerLink();
+  List<String> previousSearches = [];
+  OverlayEntry? overlayEntry;
+  bool showSuggestions = false;
+  DateTime? startDate;
+  DateTime? endDate;
 
   @override
   void initState() {
     super.initState();
     _fetchAnnouncements();
+    searchFocusNode.addListener(() {
+      if (searchFocusNode.hasFocus) {
+        _showSuggestionsOverlay();
+      } else {
+        _hideSuggestionsOverlay();
+      }
+    });
+    _loadSearchHistory();
   }
 
   // Fetch announcements from Supabase
@@ -27,10 +46,125 @@ class _HomePageState extends State<HomePage> {
     if (response != null && response.isNotEmpty) {
       setState(() {
         announcements = List<Map<String, dynamic>>.from(response);
+        filteredAnnouncements = List<Map<String, dynamic>>.from(announcements);
       });
     } else {
       print('Error fetching announcements: No data found');
     }
+  }
+
+  Future<void> _selectDateRange(BuildContext context) async {
+    final pickedRange = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      initialDateRange: startDate != null && endDate != null
+          ? DateTimeRange(start: startDate!, end: endDate!)
+          : null,
+    );
+
+    if (pickedRange != null) {
+      setState(() {
+        startDate = pickedRange.start;
+        endDate = pickedRange.end;
+        _applyFilters();
+      });
+    }
+  }
+
+  Future<void> _loadSearchHistory() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String>? storedSearches = prefs.getStringList('previousSearches');
+    if (storedSearches != null) {
+      setState(() {
+        previousSearches = storedSearches;
+      });
+    }
+  }
+
+  Future<void> _saveSearchHistory() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('previousSearches', previousSearches);
+  }
+
+  void _applyFilters() {
+    String searchText = searchController.text.toLowerCase();
+    setState(() {
+      filteredAnnouncements = announcements.where((announcement) {
+        final title = (announcement['title'] ?? '').toLowerCase();
+        final dateCreated = announcement['date_created'] != null
+            ? DateTime.parse(announcement['date_created']).toLocal()
+            : null;
+
+        // Check if title contains search text
+        bool matchesSearch = title.contains(searchText);
+
+        // Check if within date range
+        bool matchesDate = true;
+        if (startDate != null && endDate != null && dateCreated != null) {
+          matchesDate =
+              dateCreated.isAfter(startDate!) && dateCreated.isBefore(endDate!);
+        }
+
+        return matchesSearch && matchesDate;
+      }).toList();
+    });
+  }
+
+  OverlayEntry _buildSuggestionsOverlay() {
+    return OverlayEntry(
+      builder: (context) {
+        return Positioned(
+          width: MediaQuery.of(context).size.width -
+              58, // Match width to TextField
+          child: CompositedTransformFollower(
+            link: layerLink,
+            offset: const Offset(0, 48), // Adjust offset as needed
+            child: Material(
+              elevation: 4.0,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16.0),
+                ), // Apply rounded corners
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  itemCount: previousSearches.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text(previousSearches[index]),
+                      onTap: () {
+                        searchController.text = previousSearches[index];
+                        _applyFilters();
+                        _hideSuggestionsOverlay();
+                      },
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Show the overlay
+  void _showSuggestionsOverlay() {
+    // Remove the existing overlay if any
+    _hideSuggestionsOverlay();
+
+    // Create a new overlay entry
+    overlayEntry = _buildSuggestionsOverlay();
+
+    // Insert the new overlay entry
+    Overlay.of(context).insert(overlayEntry!);
+  }
+
+  // Hide the overlay
+  void _hideSuggestionsOverlay() {
+    overlayEntry?.remove();
+    overlayEntry = null;
   }
 
   @override
@@ -50,13 +184,25 @@ class _HomePageState extends State<HomePage> {
         : 'Unknown';
 
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildGreetingSection(fullName, formattedLastLogin),
-            _buildAnnouncementsSection(),
-            _buildCampusInfoSection(),
-          ],
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF21264d),
+              Color(0xFF525eb4),
+            ], // Customize the colors
+          ),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildGreetingSection(fullName, formattedLastLogin),
+              _buildAnnouncementsSection(),
+            ],
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -153,40 +299,114 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
             children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    height: 30, // Height of the vertical line
-                    width: 3, // Width of the vertical line
-                    color: const Color(0xFF2e3192), // Color of the line
+                  const Row(
+                    children: [
+                      SizedBox(width: 10), // Space between the line and text
+                      Text(
+                        'RECENT ANNOUNCEMENTS',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 10), // Space between the line and text
-                  const Text(
-                    'RECENT ANNOUNCEMENTS',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                  TextButton(
+                    onPressed: () {
+                      // Clear the search text and date range
+                      searchController.clear();
+                      setState(() {
+                        startDate = null;
+                        endDate = null;
+                        filteredAnnouncements =
+                            List<Map<String, dynamic>>.from(announcements);
+                      });
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.white
+                          .withOpacity(0.3), // Transparent background
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(30), // Rounded corners
+                      ),
                     ),
+                    child: const Text('Clear Filters'),
                   ),
                 ],
               ),
-              TextButton(
-                onPressed: () {},
-                child: const Text('View All'),
-              ),
             ],
           ),
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: CompositedTransformTarget(
+              link: layerLink,
+              child: TextField(
+                onTap: () {
+                  _showSuggestionsOverlay();
+                },
+                controller: searchController,
+                focusNode: searchFocusNode,
+                style: TextStyle(
+                    color: Colors.white), // Set typed text color to white
+                decoration: InputDecoration(
+                  hintText: 'Search announcements...',
+                  hintStyle: TextStyle(
+                      color: Colors.white
+                          .withOpacity(0.7)), // Hint text color with opacity
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(
+                      0.3), // Transparent white background with 30% opacity
+                  prefixIcon: const Icon(Icons.search,
+                      color: Colors.white), // White search icon
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.date_range,
+                        color: Colors.white), // White date range icon
+                    onPressed: () => _selectDateRange(context),
+                  ),
+                  border: InputBorder.none, // Remove underline
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color:
+                            Colors.transparent), // No border when not focused
+                    borderRadius: BorderRadius.circular(30), // Rounded corners
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: Colors.transparent), // No border when focused
+                    borderRadius: BorderRadius.circular(30), // Rounded corners
+                  ),
+                ),
+                onChanged: (value) => _applyFilters(),
+                onSubmitted: (value) {
+                  _applyFilters();
+                  setState(() {
+                    previousSearches.insert(0, value);
+                    if (previousSearches.length > 5) {
+                      previousSearches.removeLast();
+                    }
+                    _saveSearchHistory(); // Save to SharedPreferences
+                  });
+                  _hideSuggestionsOverlay();
+                },
+              ),
+            ),
+          ),
           // Display the announcements using ListView.builder
-          if (announcements.isNotEmpty)
+          if (filteredAnnouncements.isNotEmpty)
             ListView.builder(
               shrinkWrap: true, // To avoid overflow
               physics: NeverScrollableScrollPhysics(), // Disable scrolling
-              itemCount: announcements.length,
+              itemCount: filteredAnnouncements.length,
               itemBuilder: (context, index) {
-                final announcement = announcements[index];
+                final announcement = filteredAnnouncements[index];
                 final title = announcement['title'] ?? '';
                 final imageUrls = announcement['event_images'] != null &&
                         announcement['event_images'].isNotEmpty
@@ -224,7 +444,13 @@ class _HomePageState extends State<HomePage> {
         '${postedTime.day} ${_getMonthName(postedTime.month)} ${postedTime.year} ${_formatTime(postedTime)}';
 
     return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.circular(12.0), // Rounded corners for the card
+      ),
+      color: Colors.white.withOpacity(0.3),
       child: ListTile(
+        contentPadding: EdgeInsets.all(10), // Add padding around the content
         leading: SizedBox(
           width: 60,
           height: 60,
@@ -236,7 +462,6 @@ class _HomePageState extends State<HomePage> {
                 photoUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
-                  // Display a placeholder if the image fails to load
                   return const Image(
                     image: AssetImage('assets/images/placeholder.jpg'),
                     fit: BoxFit.cover,
@@ -250,11 +475,16 @@ class _HomePageState extends State<HomePage> {
           truncateWithEllipsis(title, 10),
           style: const TextStyle(
             fontSize: 14,
-          ), // Ensure it adds an ellipsis if needed
+            color: Colors.white, // White text color for the title
+          ),
         ),
         subtitle: Text(
           formattedPostedTime,
-          style: TextStyle(fontSize: 11),
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.white
+                .withOpacity(0.7), // White subtitle with some opacity
+          ),
         ),
         trailing: TextButton(
           onPressed: () {
@@ -268,7 +498,9 @@ class _HomePageState extends State<HomePage> {
           },
           child: const Text(
             'View',
-            style: TextStyle(color: Colors.blue),
+            style: TextStyle(
+              color: Colors.white, // White 'View' button text
+            ),
           ),
         ),
       ),
