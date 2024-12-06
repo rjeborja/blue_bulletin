@@ -98,8 +98,10 @@ class _ItemPageState extends State<ItemPage> {
                       const SizedBox(width: 4),
                       Text(
                         eventDetails?['location'] ?? 'No Location',
-                        style: TextStyle(
-                            fontSize: 10, color: const Color(0xFF808080)),
+                        style: const TextStyle(
+                            fontSize: 10, color: Color(0xFF808080)),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                       const SizedBox(width: 16),
                       const Icon(Icons.calendar_today,

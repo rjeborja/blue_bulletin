@@ -125,17 +125,16 @@ class _HomePageState extends State<HomePage> {
     return OverlayEntry(
       builder: (context) {
         return Positioned(
-          width: MediaQuery.of(context).size.width -
-              58, // Match width to TextField
+          width: MediaQuery.of(context).size.width - 58,
           child: CompositedTransformFollower(
             link: layerLink,
-            offset: const Offset(0, 48), // Adjust offset as needed
+            offset: const Offset(0, 48),
             child: Material(
               elevation: 4.0,
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16.0),
-                ), // Apply rounded corners
+                ),
                 child: ListView.builder(
                   padding: EdgeInsets.zero,
                   shrinkWrap: true,
@@ -189,7 +188,7 @@ class _HomePageState extends State<HomePage> {
         : 'Unknown';
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xFF525eb4),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -339,7 +338,10 @@ class _HomePageState extends State<HomePage> {
                         borderRadius: BorderRadius.circular(30),
                       ),
                     ),
-                    child: const Text('Clear Filters'),
+                    child: const Text(
+                      'Clear Filters',
+                      style: TextStyle(fontSize: 12),
+                    ),
                   ),
                 ],
               ),
