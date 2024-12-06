@@ -23,6 +23,7 @@ class _HomePageState extends State<HomePage> {
   bool showSuggestions = false;
   DateTime? startDate;
   DateTime? endDate;
+  final userId = supabase.auth.currentUser?.id ?? '';
 
   @override
   void initState() {
@@ -35,7 +36,7 @@ class _HomePageState extends State<HomePage> {
         _hideSuggestionsOverlay();
       }
     });
-    _loadSearchHistory();
+    _loadSearchHistory(userId);
   }
 
   // Fetch announcements from Supabase
@@ -72,19 +73,32 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _loadSearchHistory() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? storedSearches = prefs.getStringList('previousSearches');
-    if (storedSearches != null) {
-      setState(() {
-        previousSearches = storedSearches;
-      });
+  Future<void> _loadSearchHistory(String userId) async {
+    if (userId.isNotEmpty) {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      List<String>? storedSearches =
+          prefs.getStringList('previousSearches_$userId');
+      if (storedSearches != null) {
+        setState(() {
+          previousSearches = storedSearches;
+        });
+        print("Search history loaded for user $userId");
+      } else {
+        print("No search history found for user $userId");
+      }
+    } else {
+      print("Invalid user ID");
     }
   }
 
-  Future<void> _saveSearchHistory() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('previousSearches', previousSearches);
+  Future<void> _saveSearchHistory(String userId) async {
+    if (userId.isNotEmpty) {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('previousSearches_$userId', previousSearches);
+      print("Search history saved for user $userId");
+    } else {
+      print("Invalid user ID");
+    }
   }
 
   void _applyFilters() {
@@ -95,15 +109,11 @@ class _HomePageState extends State<HomePage> {
         final dateCreated = announcement['date_created'] != null
             ? DateTime.parse(announcement['date_created']).toLocal()
             : null;
-
-        // Check if title contains search text
         bool matchesSearch = title.contains(searchText);
-
-        // Check if within date range
         bool matchesDate = true;
         if (startDate != null && endDate != null && dateCreated != null) {
-          matchesDate =
-              dateCreated.isAfter(startDate!) && dateCreated.isBefore(endDate!);
+          matchesDate = dateCreated.isAfter(startDate!) &&
+              !dateCreated.isAfter(endDate!.add(const Duration(days: 1)));
         }
 
         return matchesSearch && matchesDate;
@@ -151,13 +161,8 @@ class _HomePageState extends State<HomePage> {
 
   // Show the overlay
   void _showSuggestionsOverlay() {
-    // Remove the existing overlay if any
     _hideSuggestionsOverlay();
-
-    // Create a new overlay entry
     overlayEntry = _buildSuggestionsOverlay();
-
-    // Insert the new overlay entry
     Overlay.of(context).insert(overlayEntry!);
   }
 
@@ -306,7 +311,7 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   const Row(
                     children: [
-                      SizedBox(width: 10), // Space between the line and text
+                      SizedBox(width: 10),
                       Text(
                         'RECENT ANNOUNCEMENTS',
                         style: TextStyle(
@@ -319,7 +324,6 @@ class _HomePageState extends State<HomePage> {
                   ),
                   TextButton(
                     onPressed: () {
-                      // Clear the search text and date range
                       searchController.clear();
                       setState(() {
                         startDate = null;
@@ -330,11 +334,9 @@ class _HomePageState extends State<HomePage> {
                     },
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.white,
-                      backgroundColor: Colors.white
-                          .withOpacity(0.3), // Transparent background
+                      backgroundColor: Colors.white.withOpacity(0.3),
                       shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(30), // Rounded corners
+                        borderRadius: BorderRadius.circular(30),
                       ),
                     ),
                     child: const Text('Clear Filters'),
@@ -354,34 +356,25 @@ class _HomePageState extends State<HomePage> {
                 },
                 controller: searchController,
                 focusNode: searchFocusNode,
-                style: TextStyle(
-                    color: Colors.white), // Set typed text color to white
+                style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Search announcements...',
-                  hintStyle: TextStyle(
-                      color: Colors.white
-                          .withOpacity(0.7)), // Hint text color with opacity
+                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
                   filled: true,
-                  fillColor: Colors.white.withOpacity(
-                      0.3), // Transparent white background with 30% opacity
-                  prefixIcon: const Icon(Icons.search,
-                      color: Colors.white), // White search icon
+                  fillColor: Colors.white.withOpacity(0.3),
+                  prefixIcon: const Icon(Icons.search, color: Colors.white),
                   suffixIcon: IconButton(
-                    icon: const Icon(Icons.date_range,
-                        color: Colors.white), // White date range icon
+                    icon: const Icon(Icons.date_range, color: Colors.white),
                     onPressed: () => _selectDateRange(context),
                   ),
-                  border: InputBorder.none, // Remove underline
+                  border: InputBorder.none,
                   enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color:
-                            Colors.transparent), // No border when not focused
-                    borderRadius: BorderRadius.circular(30), // Rounded corners
+                    borderSide: const BorderSide(color: Colors.transparent),
+                    borderRadius: BorderRadius.circular(30),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: Colors.transparent), // No border when focused
-                    borderRadius: BorderRadius.circular(30), // Rounded corners
+                    borderSide: const BorderSide(color: Colors.transparent),
+                    borderRadius: BorderRadius.circular(30),
                   ),
                 ),
                 onChanged: (value) => _applyFilters(),
@@ -392,18 +385,17 @@ class _HomePageState extends State<HomePage> {
                     if (previousSearches.length > 5) {
                       previousSearches.removeLast();
                     }
-                    _saveSearchHistory(); // Save to SharedPreferences
+                    _saveSearchHistory(userId);
                   });
                   _hideSuggestionsOverlay();
                 },
               ),
             ),
           ),
-          // Display the announcements using ListView.builder
           if (filteredAnnouncements.isNotEmpty)
             ListView.builder(
-              shrinkWrap: true, // To avoid overflow
-              physics: NeverScrollableScrollPhysics(), // Disable scrolling
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
               itemCount: filteredAnnouncements.length,
               itemBuilder: (context, index) {
                 final announcement = filteredAnnouncements[index];
@@ -413,8 +405,6 @@ class _HomePageState extends State<HomePage> {
                     ? List<String>.from(
                         announcement['event_images'][0]['image_url'])
                     : [];
-
-                // Get the first URL if available
                 final photoUrl = imageUrls.isNotEmpty ? imageUrls.first : '';
                 final date_created = announcement['date_created'] != null
                     ? DateTime.parse(announcement['date_created']).toLocal()
@@ -424,13 +414,12 @@ class _HomePageState extends State<HomePage> {
                   return _buildAnnouncementCard(
                       title, photoUrl, date_created, announcement['id']);
                 } else {
-                  return const SizedBox
-                      .shrink(); // Return an empty widget if date_created is null
+                  return const SizedBox.shrink();
                 }
               },
             )
           else
-            const Text('No announcements available'), // Fallback if no data
+            const Text('No announcements available'),
         ],
       ),
     );
@@ -439,18 +428,16 @@ class _HomePageState extends State<HomePage> {
   // Helper for Announcement Card
   Widget _buildAnnouncementCard(
       String title, String photoUrl, DateTime postedTime, int eventId) {
-    // Format the posted time as "DD Mon YYYY HH:MM AM/PM"
     final formattedPostedTime =
         '${postedTime.day} ${_getMonthName(postedTime.month)} ${postedTime.year} ${_formatTime(postedTime)}';
 
     return Card(
       shape: RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.circular(12.0), // Rounded corners for the card
+        borderRadius: BorderRadius.circular(12.0),
       ),
       color: Colors.white.withOpacity(0.3),
       child: ListTile(
-        contentPadding: EdgeInsets.all(10), // Add padding around the content
+        contentPadding: EdgeInsets.all(10),
         leading: SizedBox(
           width: 60,
           height: 60,
@@ -475,20 +462,18 @@ class _HomePageState extends State<HomePage> {
           truncateWithEllipsis(title, 10),
           style: const TextStyle(
             fontSize: 14,
-            color: Colors.white, // White text color for the title
+            color: Colors.white,
           ),
         ),
         subtitle: Text(
           formattedPostedTime,
           style: TextStyle(
             fontSize: 11,
-            color: Colors.white
-                .withOpacity(0.7), // White subtitle with some opacity
+            color: Colors.white.withOpacity(0.7),
           ),
         ),
         trailing: TextButton(
           onPressed: () {
-            // Navigate to item.dart with the eventId
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -499,7 +484,7 @@ class _HomePageState extends State<HomePage> {
           child: const Text(
             'View',
             style: TextStyle(
-              color: Colors.white, // White 'View' button text
+              color: Colors.white,
             ),
           ),
         ),
